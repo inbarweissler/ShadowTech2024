@@ -65,7 +65,7 @@ def plot_hist(all_scores):
     plt.show(block=True)
 
 # Initialize serial connection (adjust the COM port as necessary)
-ser = serial.Serial('COM11', 115200, timeout=1)
+ser = serial.Serial('COM9', 115200, timeout=1)
 
 # Dictionary to store scores
 scores = defaultdict(int)
@@ -73,12 +73,10 @@ round_number = -1
 tot_rounds = 4
 answers = [1, 1, 1, 1]
 # Questions and answers received from the micro:bit
-questions = []
-possible_answers = []
 
 # Initialize plot
-plt.ion()
-fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 8))
+# plt.ion()
+# fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 8))
 
 try:
     while round_number <= tot_rounds:
@@ -86,26 +84,38 @@ try:
             line = read_from_serial(ser)
             if line.startswith('Start round:'):
                 round_number = int(line.split(':')[-1])
+                print(f"preparing for round {round_number}")  # Debug log
                 response = b'-1\r\n' if round_number >= len(answers) else b'0\r\n' if answers[round_number] == 0 else b'1\r\n'
                 ser.write(response)
                 break
+        if round_number > tot_rounds:
+            continue
         print(f"Waiting for data for round {round_number}...")  # Debug log
+        # Read the question and answers for the round
+        # while True:
+        #     line = read_from_serial(ser)
+        #     if line.startswith('Question:'):
+        #         print(f"Received question: {line}")  # Debug log
+        #         parts = line.split('$ ')
+        #         question = parts[0].split(': ', 1)[1]
+        #         answer_1 = parts[1].split(': ')[-1].split(',')[0]
+        #         answer_2 = parts[1].split(': ')[-1].split(',')[1]
+        #         questions.append(question)
+        #         possible_answers.append([answer_1, answer_2])
+        #         break
 
-        # Question and answers for the round
-        question = questions[round_number]
-        possible_answers = answers[round_number]
+        round_winner = None
 
         # Read the responses and scores for the round
-        round_winner = None
         while True:
             line = read_from_serial(ser)
-            if line.startswith('Start scores message'):
-                ser.write(b'ack\r\n')
+            if line.startswith('Responses and Scores'):
                 break
 
         while True:
             line = read_from_serial(ser)
             if line.startswith('Device'):
+                # TODO: check bug in microbit code
                 print(f"Received device score: {line}")  # Debug log
                 parts = line.split(',')
                 device_id = parts[0].split()[1]
@@ -114,16 +124,16 @@ try:
                 winner = int(parts[2].split()[1])
                 if winner:
                     round_winner = device_id
-            elif line.startswith('Finish'):
+            else:
                 break
 
         # Plot the scores
-        plot_scores(scores, round_number, round_winner, fig, ax1, ax2)
-        round_number += 1
+        # plot_scores(scores, round_number, round_winner, fig, ax1, ax2)
+        # round_number += 1
 
     # After the game ends, plot a histogram of scores
     # TODO: fix histogram
-    plot_hist(scores)
+    # plot_hist(scores)
 
 finally:
     # Ensure the plot remains open after the serial connection is closed

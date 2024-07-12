@@ -1,16 +1,48 @@
 from microbit import *
 import radio
+import machine
+import struct
+
+def microbit_friendly_name():
+    length = 5
+    letters = 5
+    codebook = [
+        ['z', 'v', 'g', 'p', 't'],
+        ['u', 'o', 'i', 'e', 'a'],
+        ['z', 'v', 'g', 'p', 't'],
+        ['u', 'o', 'i', 'e', 'a'],
+        ['z', 'v', 'g', 'p', 't']
+    ]
+    name = []
+
+    # Derive our name from the nrf51822's unique ID
+    _, n = struct.unpack("II", machine.unique_id())
+    ld = 1;
+    d = letters;
+
+    for i in range(0, length):
+        h = (n % d) // ld;
+        n -= h;
+        d *= letters;
+        ld *= letters;
+        name.insert(0, codebook[i][h]);
+
+    return "".join(name);
+
+# system params
+wait_time_ms = 5000 # 5 seconds timeout
+device_id = microbit_friendly_name()
+print(device_id)
 
 # Initialize radio
 radio.on()
-radio.config(channel=7)
+radio.config(group=7)
 
 # Unique ID for the device (Change for each secondary device)
-device_id = 'A'  # Replace with 'B' for the second device
 radio.send(device_id + ",init")
-display.show(Image.HEART_SMALL)
+display.show(device_id)
 print("Initializing device ", device_id)
-sleep(1000)
+sleep(2000)
 display.clear()
 
 # Main loop
@@ -18,20 +50,20 @@ while True:
     incoming = radio.receive()
     if incoming:
         parts = incoming.split(',')
-        if len(parts) == 3 and parts[1] == "ping":
-            correct_answer = int(parts[2])
+        if len(parts) == 2 and parts[1] == "ping":
             # Display question mark
             display.show('?')
 
             # Wait for player's response
             response = 0
+            
             start_time = running_time()
-            while running_time() - start_time < 3000:  # 3 seconds timeout
+            while running_time() - start_time < wait_time_ms:  
                 if button_a.is_pressed():
-                    response = 1
+                    response = 0
                     break
                 elif button_b.is_pressed():
-                    response = 2
+                    response = 1
                     break
                 sleep(100)  # Check button presses every 100ms
 
@@ -54,7 +86,7 @@ while True:
                             display.show(Image.SAD)
                         else:
                             print("neutral\r\n")
-                            display.show(Image.HEART_SMALL)
+                            display.show(Image.SQUARE)
                         sleep(2000)
                         display.clear()
                         break
