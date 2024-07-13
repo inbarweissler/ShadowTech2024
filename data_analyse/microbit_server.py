@@ -1,16 +1,20 @@
+import csv
 import serial
 import matplotlib.pyplot as plt
 from collections import defaultdict
 
-# Questions, possible answers, and correct answers
-questions = ["Q1 what day is today?", "Q2 what month is it now?",
-             "Q3 what city are we in?", "Q4 what country are we in?"]
-possible_answers = [["Friday", "Sunday"], ["July", "August"],
-                    ["Hamilton", "NYC"], ["NZ", "USA"]]
+# Global parameters
+master_port = 'COM10'
+questions = []
+possible_answers = []
+answers = []
+round_number = -1
+
 
 # Function to read from the serial port
 def read_from_serial(curr_ser):
     return curr_ser.readline().decode('utf-8').strip()
+
 
 # Function to update and plot scores
 def plot_scores(current_score, iter_num, round_winner, fig, ax1, ax2):
@@ -52,57 +56,47 @@ def plot_scores(current_score, iter_num, round_winner, fig, ax1, ax2):
     fig.canvas.flush_events()  # Ensure the plot updates immediately
     fig.show()
 
-# Function to plot histogram of scores
-def plot_hist(all_scores):
-    plt.figure()
-    plt.hist(list(all_scores.values()), bins=range(min(all_scores.values()), max(all_scores.values()) + 10, 10),
-             edgecolor='black')
-    plt.xlabel('Scores')
-    plt.ylabel('Frequency')
-    plt.title('Histogram of Scores')
-    plt.grid(True)
-    plt.tight_layout()
-    plt.show(block=True)
+
+def parse_csv(file_path):
+    # Parse CSV file to get questions and answers
+    with open('questions.csv', mode='r') as csvfile:
+        csvreader = csv.reader(csvfile)
+        for row in csvreader:
+            question_part, answers_part, solution_part = row[0].split('|')
+            curr_answers = answers_part.split(' ')
+            questions.append(question_part.strip())
+            possible_answers.append([curr_answers[0].strip(), curr_answers[1].strip()])
+            answers.append(solution_part.strip())
+    # Determine the total number of rounds based on the number of questions
+    return len(questions)
+
 
 # Initialize serial connection (adjust the COM port as necessary)
-ser = serial.Serial('COM9', 115200, timeout=1)
+ser = serial.Serial(master_port, 115200, timeout=1)
 
 # Dictionary to store scores
 scores = defaultdict(int)
-round_number = -1
-tot_rounds = 4
-answers = [1, 1, 1, 1]
-# Questions and answers received from the micro:bit
 
 # Initialize plot
-# plt.ion()
-# fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 8))
+plt.ion()
+fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 8))
+
 
 try:
+    tot_rounds = parse_csv('questions.csv')
     while round_number <= tot_rounds:
         while True:
             line = read_from_serial(ser)
             if line.startswith('Start round:'):
                 round_number = int(line.split(':')[-1])
                 print(f"preparing for round {round_number}")  # Debug log
-                response = b'-1\r\n' if round_number >= len(answers) else b'0\r\n' if answers[round_number] == 0 else b'1\r\n'
+                response = b'-1\r\n' if round_number >= len(answers) else b'0\r\n' if answers[
+                                                                                          round_number] == 0 else b'1\r\n'
                 ser.write(response)
                 break
         if round_number > tot_rounds:
             continue
         print(f"Waiting for data for round {round_number}...")  # Debug log
-        # Read the question and answers for the round
-        # while True:
-        #     line = read_from_serial(ser)
-        #     if line.startswith('Question:'):
-        #         print(f"Received question: {line}")  # Debug log
-        #         parts = line.split('$ ')
-        #         question = parts[0].split(': ', 1)[1]
-        #         answer_1 = parts[1].split(': ')[-1].split(',')[0]
-        #         answer_2 = parts[1].split(': ')[-1].split(',')[1]
-        #         questions.append(question)
-        #         possible_answers.append([answer_1, answer_2])
-        #         break
 
         round_winner = None
 
@@ -115,7 +109,6 @@ try:
         while True:
             line = read_from_serial(ser)
             if line.startswith('Device'):
-                # TODO: check bug in microbit code
                 print(f"Received device score: {line}")  # Debug log
                 parts = line.split(',')
                 device_id = parts[0].split()[1]
@@ -128,12 +121,9 @@ try:
                 break
 
         # Plot the scores
-        # plot_scores(scores, round_number, round_winner, fig, ax1, ax2)
-        # round_number += 1
+        plot_scores(scores, round_number, round_winner, fig, ax1, ax2)
 
-    # After the game ends, plot a histogram of scores
-    # TODO: fix histogram
-    # plot_hist(scores)
+    # TODO: add a summary plot (maybe histogram) after the game ends
 
 finally:
     # Ensure the plot remains open after the serial connection is closed

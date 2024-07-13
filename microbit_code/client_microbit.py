@@ -40,9 +40,9 @@ radio.config(group=7)
 
 # Unique ID for the device (Change for each secondary device)
 radio.send(device_id + ",init")
-display.show(device_id)
+# display.show(device_id)
 print("Initializing device ", device_id)
-sleep(2000)
+# sleep(2000)
 display.clear()
 
 # Main loop
@@ -50,6 +50,11 @@ while True:
     incoming = radio.receive()
     if incoming:
         parts = incoming.split(',')
+        if len(parts) == 3 and parts[0] == device_id and parts[1] == "assign":
+            assigned_letter = parts[2]
+            display.show(assigned_letter)
+            sleep(2000)
+            display.clear()
         if len(parts) == 2 and parts[1] == "ping":
             # Display question mark
             display.show('?')
