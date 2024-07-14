@@ -1,6 +1,7 @@
 import csv
 import serial
 import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
 from collections import defaultdict
 
 # Global parameters
@@ -24,9 +25,9 @@ def plot_scores(current_score, iter_num, round_winner, fig, ax1, ax2):
 
     # First subplot: current question with two possible answers
     ax1.set_title(f'Round {iter_num} Question')
-    ax1.text(0.5, 0.8, questions[iter_num - 1], ha='center', va='center', fontsize=12, fontweight='bold')
-    ax1.text(0.25, 0.5, f"A) {possible_answers[iter_num - 1][0]}", ha='center', va='center', fontsize=12)
-    ax1.text(0.75, 0.5, f"B) {possible_answers[iter_num - 1][1]}", ha='center', va='center', fontsize=12)
+    ax1.text(0.5, 0.8, questions[iter_num], ha='center', va='center', fontsize=12, fontweight='bold')
+    ax1.text(0.25, 0.5, f"A) {possible_answers[iter_num][0]}", ha='center', va='center', fontsize=12)
+    ax1.text(0.75, 0.5, f"B) {possible_answers[iter_num][1]}", ha='center', va='center', fontsize=12)
     ax1.axis('off')
 
     # Second subplot: scores
@@ -42,7 +43,7 @@ def plot_scores(current_score, iter_num, round_winner, fig, ax1, ax2):
     ax2.set_xlabel('Players')
     ax2.set_ylabel('Scores')
     ax2.set_yticks([])
-    ax2.set_title(f'Round {iter_num} Scores')
+    ax2.set_title(f'Round {iter_num + 1} Scores')
     ax2.set_ylim(min(scores_list) - 10, max(scores_list) + 10)
     ax2.set_xticks(devices)
     ax2.tick_params(axis='x', rotation=45)
@@ -57,9 +58,32 @@ def plot_scores(current_score, iter_num, round_winner, fig, ax1, ax2):
     fig.show()
 
 
+# Function to display the winner message and image
+def display_winner(fig, ax1, final_winner):
+    # Clear the figure
+    fig.clear()
+    ax = fig.add_subplot(111)
+
+    # Display winner text
+    ax.text(0.5, 0.5, f"And the winner is: {final_winner}", ha='center', va='center', fontsize=18, fontweight='bold')
+    ax.axis('off')
+
+    # # Load and display the winner cup image
+    # img = mpimg.imread('winner_cup.jpg')
+    # ax.imshow(img, aspect='auto', extent=[0.25, 0.75, 0, 0.4])
+
+    fig.canvas.draw()
+    fig.show()
+
+
 def parse_csv(file_path):
+    # Clear any previously read questions and answers
+    questions.clear()
+    possible_answers.clear()
+    answers.clear()
+
     # Parse CSV file to get questions and answers
-    with open('questions.csv', mode='r') as csvfile:
+    with open(file_path, mode='r') as csvfile:
         csvreader = csv.reader(csvfile)
         for row in csvreader:
             question_part, answers_part, solution_part = row[0].split('|')
@@ -71,6 +95,19 @@ def parse_csv(file_path):
     return len(questions)
 
 
+# Function to plot the current question and possible answers
+def plot_question(fig, ax1, iter_num):
+    ax1.clear()
+    ax1.set_title(f'Round {iter_num} Question')
+    ax1.text(0.5, 0.8, questions[iter_num], ha='center', va='center', fontsize=12, fontweight='bold')
+    ax1.text(0.25, 0.5, f"A) {possible_answers[iter_num][0]}", ha='center', va='center', fontsize=12)
+    ax1.text(0.75, 0.5, f"B) {possible_answers[iter_num][1]}", ha='center', va='center', fontsize=12)
+    ax1.axis('off')
+    fig.canvas.draw()
+    fig.canvas.flush_events()
+    fig.show()
+
+
 # Initialize serial connection (adjust the COM port as necessary)
 ser = serial.Serial(master_port, 115200, timeout=1)
 
@@ -80,7 +117,6 @@ scores = defaultdict(int)
 # Initialize plot
 plt.ion()
 fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 8))
-
 
 try:
     tot_rounds = parse_csv('questions.csv')
@@ -94,11 +130,14 @@ try:
                                                                                           round_number] == 0 else b'1\r\n'
                 ser.write(response)
                 break
-        if round_number > tot_rounds:
-            continue
+        if round_number >= tot_rounds:
+            break
         print(f"Waiting for data for round {round_number}...")  # Debug log
 
         round_winner = None
+
+        # Plot the current question and possible answers
+        plot_question(fig, ax1, round_number)
 
         # Read the responses and scores for the round
         while True:
@@ -123,7 +162,12 @@ try:
         # Plot the scores
         plot_scores(scores, round_number, round_winner, fig, ax1, ax2)
 
-    # TODO: add a summary plot (maybe histogram) after the game ends
+    if round_number > 0:
+        # Determine the final winner
+        final_winner = max(scores, key=scores.get)
+
+        # Display the winner message and image
+        display_winner(fig, ax1, final_winner)
 
 finally:
     # Ensure the plot remains open after the serial connection is closed

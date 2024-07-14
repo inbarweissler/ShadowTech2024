@@ -111,7 +111,6 @@ while not terminate:
                 radio.send(device_id + ",result,wrong")
         else:
             radio.send(device_id + ",result,neutral")
-    print("masheho")
     
     # Send responses and scores to PC
     uart.write('Responses and Scores #{}:\r\n'.format(quiz_round + 1))
