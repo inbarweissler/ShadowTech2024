@@ -39,11 +39,8 @@ print(device_id)
 radio.on()
 radio.config(group=7)
 
-# Unique ID for the device (Change for each secondary device)
 radio.send(device_id + ",init")
-# display.show(device_id)
 print("Initializing device ", device_id)
-# sleep(2000)
 display.clear()
 
 # Main loop
@@ -61,8 +58,7 @@ while True:
             display.show('?')
 
             # Wait for player's response
-            response = 0
-            
+            response = -1
             start_time = running_time()
             while running_time() - start_time < wait_time_ms:  
                 if button_a.is_pressed():
@@ -73,14 +69,14 @@ while True:
                     break
                 sleep(100)  # Check button presses every 100ms
 
-            # Send response to the main micro:bit (only send the first response)
             response_time = running_time() - start_time
+            
             # Add a random delay to avoid collisions
-            sleep(random.randint(50, 500))  
+            sleep(random.randint(50, 500))
+            
             radio.send(device_id + "," + str(response) + "," + str(response_time))
             display.clear()
 
-            # Wait for result command before continuing
             while True:
                 incoming_result = radio.receive()
                 if incoming_result:
@@ -98,4 +94,4 @@ while True:
                         sleep(2000)
                         display.clear()
                         break
-                sleep(100)  # Check for result message every 100ms
+                sleep(100)

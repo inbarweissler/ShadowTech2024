@@ -1,8 +1,7 @@
 import csv
 import serial
 import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
-from collections import defaultdict
+
 
 # Global parameters
 master_port = 'COM10'
@@ -17,6 +16,21 @@ def read_from_serial(curr_ser):
     return curr_ser.readline().decode('utf-8').strip()
 
 
+# Function to plot the current question and possible answers
+def plot_question(fig, ax1, ax2, iter_num):
+    ax1.clear()
+    ax2.clear()
+    ax1.set_title(f'Round {iter_num + 1} Question')
+    ax1.text(0.5, 0.8, questions[iter_num], ha='center', va='center', fontsize=12, fontweight='bold')
+    ax1.text(0.25, 0.5, f"A) {possible_answers[iter_num][0]}", ha='center', va='center', fontsize=12)
+    ax1.text(0.75, 0.5, f"B) {possible_answers[iter_num][1]}", ha='center', va='center', fontsize=12)
+    ax1.axis('off')
+    ax2.axis('off')
+    fig.canvas.draw()
+    fig.canvas.flush_events()
+    fig.show()
+
+
 # Function to update and plot scores
 def plot_scores(current_score, iter_num, round_winner, fig, ax1, ax2):
     # Clear the previous plot contents
@@ -24,7 +38,7 @@ def plot_scores(current_score, iter_num, round_winner, fig, ax1, ax2):
     ax2.clear()
 
     # First subplot: current question with two possible answers
-    ax1.set_title(f'Round {iter_num} Question')
+    ax1.set_title(f'Round {iter_num + 1} Question')
     ax1.text(0.5, 0.8, questions[iter_num], ha='center', va='center', fontsize=12, fontweight='bold')
     ax1.text(0.25, 0.5, f"A) {possible_answers[iter_num][0]}", ha='center', va='center', fontsize=12)
     ax1.text(0.75, 0.5, f"B) {possible_answers[iter_num][1]}", ha='center', va='center', fontsize=12)
@@ -37,7 +51,7 @@ def plot_scores(current_score, iter_num, round_winner, fig, ax1, ax2):
     # Plot scatter plot
     for i, device in enumerate(devices):
         ax2.scatter(device, scores_list[i], color='blue', marker='x', s=100)  # 'X' mark for all players
-        if device == round_winner:
+        if device in round_winner:
             ax2.scatter(device, scores_list[i], color='red', marker='o', s=150)  # Red 'O' mark for the round winner
 
     ax2.set_xlabel('Players')
@@ -65,14 +79,10 @@ def display_winner(fig, ax1, final_winner):
     ax = fig.add_subplot(111)
 
     # Display winner text
-    ax.text(0.5, 0.5, f"And the winner is: {final_winner}", ha='center', va='center', fontsize=18, fontweight='bold')
+    ax.text(0.5, 0.5, f"And the winner\\s is...\n\n {",".join(map(str, final_winner))}", ha='center', va='center',
+            fontsize=40, fontweight='bold')
     ax.axis('off')
 
-    # # Load and display the winner cup image
-    # img = mpimg.imread('winner_cup.jpg')
-    # ax.imshow(img, aspect='auto', extent=[0.25, 0.75, 0, 0.4])
-
-    fig.canvas.draw()
     fig.show()
 
 
@@ -95,24 +105,11 @@ def parse_csv(file_path):
     return len(questions)
 
 
-# Function to plot the current question and possible answers
-def plot_question(fig, ax1, iter_num):
-    ax1.clear()
-    ax1.set_title(f'Round {iter_num} Question')
-    ax1.text(0.5, 0.8, questions[iter_num], ha='center', va='center', fontsize=12, fontweight='bold')
-    ax1.text(0.25, 0.5, f"A) {possible_answers[iter_num][0]}", ha='center', va='center', fontsize=12)
-    ax1.text(0.75, 0.5, f"B) {possible_answers[iter_num][1]}", ha='center', va='center', fontsize=12)
-    ax1.axis('off')
-    fig.canvas.draw()
-    fig.canvas.flush_events()
-    fig.show()
-
-
 # Initialize serial connection (adjust the COM port as necessary)
 ser = serial.Serial(master_port, 115200, timeout=1)
 
 # Dictionary to store scores
-scores = defaultdict(int)
+scores = dict()
 
 # Initialize plot
 plt.ion()
@@ -134,10 +131,10 @@ try:
             break
         print(f"Waiting for data for round {round_number}...")  # Debug log
 
-        round_winner = None
+        round_winner = []
 
         # Plot the current question and possible answers
-        plot_question(fig, ax1, round_number)
+        plot_question(fig, ax1, ax2, round_number)
 
         # Read the responses and scores for the round
         while True:
@@ -155,7 +152,7 @@ try:
                 scores[device_id] = score
                 winner = int(parts[2].split()[1])
                 if winner:
-                    round_winner = device_id
+                    round_winner.append(device_id)
             else:
                 break
 
@@ -164,7 +161,11 @@ try:
 
     if round_number > 0:
         # Determine the final winner
-        final_winner = max(scores, key=scores.get)
+        max_value = max(scores.values())
+        final_winner = []
+        for key in scores.keys():
+            if scores[key] == max_value:
+                final_winner.append(key)
 
         # Display the winner message and image
         display_winner(fig, ax1, final_winner)
