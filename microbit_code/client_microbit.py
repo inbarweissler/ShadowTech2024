@@ -2,6 +2,7 @@ from microbit import *
 import radio
 import machine
 import struct
+import random
 
 def microbit_friendly_name():
     length = 5
@@ -74,6 +75,8 @@ while True:
 
             # Send response to the main micro:bit (only send the first response)
             response_time = running_time() - start_time
+            # Add a random delay to avoid collisions
+            sleep(random.randint(50, 500))  
             radio.send(device_id + "," + str(response) + "," + str(response_time))
             display.clear()
 
